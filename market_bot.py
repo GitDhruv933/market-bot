@@ -4,9 +4,33 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Get secrets
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+
+# ----------- TELEGRAM FUNCTIONS -----------
+
+def send_media_group(images):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup"
+
+    media = []
+    files = {}
+
+    for i, image in enumerate(images):
+        files[f"photo{i}"] = open(image, "rb")
+        media.append({
+            "type": "photo",
+            "media": f"attach://photo{i}"
+        })
+
+    requests.post(
+        url,
+        data={"chat_id": CHAT_ID, "media": str(media).replace("'", '"')},
+        files=files
+    )
+
+    for f in files.values():
+        f.close()
+
 
 def send_photo(photo_path, caption):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
@@ -16,6 +40,8 @@ def send_photo(photo_path, caption):
             data={"chat_id": CHAT_ID, "caption": caption},
             files={"photo": photo}
         )
+
+# ----------- ANALYSIS FUNCTION -----------
 
 def analyze_asset(symbol, name):
     data = yf.download(symbol, period="120d")
@@ -31,7 +57,6 @@ def analyze_asset(symbol, name):
     ma20 = float(data["MA20"].iloc[-1])
     ma50 = float(data["MA50"].iloc[-1])
 
-    # Trend
     if current_price > ma20 and ma20 > ma50:
         trend = "📈 Bullish"
         trend_score = 1
@@ -42,7 +67,6 @@ def analyze_asset(symbol, name):
         trend = "⚖️ Sideways"
         trend_score = 0
 
-    # Risk
     if volatility_percent > 60:
         risk = "🔴 High Risk"
         risk_score = -1
@@ -53,11 +77,10 @@ def analyze_asset(symbol, name):
         risk = "🟢 Low Risk"
         risk_score = 1
 
-    # Confidence Score (simple scoring model)
     confidence = (trend_score * 50) + (risk_score * 25) + 50
     confidence = max(0, min(100, confidence))
 
-    # Plot chart
+    # Generate chart
     plt.figure()
     plt.plot(data["Close"])
     plt.title(f"{name} Price Chart")
@@ -80,13 +103,29 @@ Confidence Score: {confidence}%
     return filename, caption
 
 
-# Assets to scan
-assets = [
+# ----------- MAIN EXECUTION -----------
+
+# First group (single message)
+group_assets = [
     ("BTC-USD", "Bitcoin"),
     ("ETH-USD", "Ethereum"),
     ("^NSEI", "NIFTY 50")
 ]
 
-for symbol, name in assets:
-    image, text = analyze_asset(symbol, name)
-    send_photo(image, text)
+group_images = []
+
+for symbol, name in group_assets:
+    image, caption = analyze_asset(symbol, name)
+    group_images.append(image)
+
+send_media_group(group_images)
+
+
+# QQQ separate message
+qqq_image, qqq_caption = analyze_asset("QQQ", "Invesco QQQ Trust")
+send_photo(qqq_image, qqq_caption)
+
+
+# QQQM separate message
+qqqm_image, qqqm_caption = analyze_asset("QQQM", "Invesco NASDAQ 100 ETF")
+send_photo(qqqm_image, qqqm_caption)
