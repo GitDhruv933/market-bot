@@ -1,10 +1,10 @@
 import requests
 import yfinance as yf
 import pandas as pd
+import os
 
-BOT_TOKEN = "8554800191:AAEiJKWEW7WbyaKEApx7CT9SHC38mHxEQkk"
-CHAT_ID = "7847181691"
-
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 def send_message(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": text}
@@ -39,5 +39,6 @@ MA50: ${round(ma50,2)}
 
 Trend: {trend}
 """
+
 
 send_message(message)
